@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/alapierre/docker-compose-utils/dotenv"
 	"github.com/valyala/fasttemplate"
+	"gopkg.in/yaml.v2"
 	"io/ioutil"
 )
 
@@ -38,4 +39,31 @@ func convertMap(env map[string]string) map[string]interface{} {
 		mapInterface[strKey] = strValue
 	}
 	return mapInterface
+}
+
+func Extract(file string) (map[string]string, error) {
+
+	content, err := ioutil.ReadFile(file)
+	if err != nil {
+		return nil, err
+	}
+
+	res := make(map[string]interface{})
+	err = yaml.Unmarshal(content, res)
+
+	if err != nil {
+		return nil, err
+	}
+
+	//fmt.Printf("%v\n", res)
+
+	a := res["services"].(map[interface{}]interface{})
+
+	for k, v := range a {
+		fmt.Printf("%v -> %v\n", k, v)
+		s := v.(map[interface{}]interface{})
+		fmt.Printf("%v\n", s["image"])
+	}
+
+	return nil, err
 }

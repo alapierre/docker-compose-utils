@@ -14,9 +14,11 @@ func main() {
 
 	freezeCmd := args.NewCommand("freeze", "put all .env variable into docker-compose file")
 
-	input := freezeCmd.String("i", "input", &argparse.Options{Required: true, Help: "input docker compose file"})
-	env := freezeCmd.String("e", "env", &argparse.Options{Help: "env file name", Default: ".env"})
-	out := freezeCmd.String("o", "output", &argparse.Options{Help: "output file name"})
+	input := args.String("i", "input", &argparse.Options{Required: true, Help: "input docker compose file"})
+	env := args.String("e", "env", &argparse.Options{Help: "env file name", Default: ".env"})
+	out := args.String("o", "output", &argparse.Options{Help: "output file name"})
+
+	extractCmd := args.NewCommand("extract", "extract all image versions from docker-compose file into .env")
 
 	err := args.Parse(os.Args)
 	if err != nil {
@@ -26,9 +28,19 @@ func main() {
 
 	if freezeCmd.Happened() {
 		freeze(err, input, env, out)
+	} else if extractCmd.Happened() {
+		extract(*input)
 	} else {
 		err := fmt.Errorf("bad arguments, please check usage")
 		fmt.Print(args.Usage(err))
+	}
+}
+
+func extract(file string) {
+	_, err := parser.Extract(file)
+	if err != nil {
+		fmt.Printf("Can't read %v\n", err)
+		os.Exit(1)
 	}
 }
 

@@ -2,7 +2,7 @@ version: '3'
 services:
 
   eureka:
-    image: example.com/eureka:${EUREKA_VERSION}
+    image: example.com/eureka:1.0.3
     ports:
       - "8761:8761"
 

@@ -5,9 +5,11 @@ package dotenv
 import (
 	"bufio"
 	"errors"
+	"fmt"
 	"io"
 	"os"
 	"regexp"
+	"sort"
 	"strings"
 )
 
@@ -19,6 +21,8 @@ var (
 	exportRegex        = regexp.MustCompile(`^\s*(?:export\s+)?(.*?)\s*$`)
 	expandVarRegex     = regexp.MustCompile(`(\\)?(\$)(\()?\{?([A-Z0-9_]+)?\}?`)
 )
+
+const doubleQuoteSpecialChars = "\\\n\r\"!$`"
 
 func ReadFile(filename string) (envMap map[string]string, err error) {
 	file, err := os.Open(filename)
@@ -175,3 +179,42 @@ func expandVariables(v string, m map[string]string) string {
 		return s
 	})
 }
+
+// Write serializes the given environment and writes it to a file
+func Write(envMap map[string]string, filename string) error {
+	content, error := Marshal(envMap)
+	if error != nil {
+		return error
+	}
+	file, error := os.Create(filename)
+	if error != nil {
+		return error
+	}
+	_, err := file.WriteString(content)
+	return err
+}
+
+// Marshal outputs the given environment as a dotenv-formatted environment file.
+// Each line is in the format: KEY=VALUE where VALUE is backslash-escaped.
+func Marshal(envMap map[string]string) (string, error) {
+	lines := make([]string, 0, len(envMap))
+	for k, v := range envMap {
+		lines = append(lines, fmt.Sprintf(`%s=%s`, k, v))
+	}
+	sort.Strings(lines)
+	return strings.Join(lines, "\n"), nil
+}
+
+//func doubleQuoteEscape(line string) string {
+//	for _, c := range doubleQuoteSpecialChars {
+//		toReplace := "\\" + string(c)
+//		if c == '\n' {
+//			toReplace = `\n`
+//		}
+//		if c == '\r' {
+//			toReplace = `\r`
+//		}
+//		line = strings.Replace(line, string(c), toReplace, -1)
+//	}
+//	return line
+//}

@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"github.com/akamensky/argparse"
+	"github.com/alapierre/docker-compose-utils/dotenv"
 	"github.com/alapierre/docker-compose-utils/parser"
 	"io/ioutil"
 	"os"
@@ -29,17 +30,35 @@ func main() {
 	if freezeCmd.Happened() {
 		freeze(err, input, env, out)
 	} else if extractCmd.Happened() {
-		extract(*input)
+		extract(*input, *env, *out)
 	} else {
 		err := fmt.Errorf("bad arguments, please check usage")
 		fmt.Print(args.Usage(err))
 	}
 }
 
-func extract(file string) {
-	_, err := parser.Extract(file)
+func extract(file, envFile, out string) {
+	env, newContent, err := parser.Extract(file)
 	if err != nil {
 		fmt.Printf("Can't read %v\n", err)
+		os.Exit(1)
+	}
+
+	err = dotenv.Write(env, envFile)
+	if err != nil {
+		fmt.Printf("Can't write env %v\n", err)
+		os.Exit(1)
+	}
+
+	outFile, err := os.Create(out)
+	if err != nil {
+		fmt.Printf("Can't create out file %v\n", err)
+		os.Exit(1)
+	}
+	_, err = outFile.WriteString(newContent)
+
+	if err != nil {
+		fmt.Printf("Can't write out file %v\n", err)
 		os.Exit(1)
 	}
 }

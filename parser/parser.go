@@ -6,6 +6,8 @@ import (
 	"github.com/valyala/fasttemplate"
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
+	"regexp"
+	"strings"
 )
 
 func Parse(file, envFile string) (string, error) {
@@ -41,29 +43,82 @@ func convertMap(env map[string]string) map[string]interface{} {
 	return mapInterface
 }
 
-func Extract(file string) (map[string]string, error) {
+func Extract(file string) (map[string]string, string, error) {
 
 	content, err := ioutil.ReadFile(file)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
-	res := make(map[string]interface{})
-	err = yaml.Unmarshal(content, res)
+	compose := make(map[string]interface{})
+	err = yaml.Unmarshal(content, compose)
 
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
-	//fmt.Printf("%v\n", res)
+	res := make(map[string]string)
 
-	a := res["services"].(map[interface{}]interface{})
+	a := compose["services"].(map[interface{}]interface{})
 
-	for k, v := range a {
-		fmt.Printf("%v -> %v\n", k, v)
+	contentString := string(content)
+
+	for _, v := range a {
 		s := v.(map[interface{}]interface{})
-		fmt.Printf("%v\n", s["image"])
+
+		r, i, v := parseImage(s["image"].(string))
+		if v == "" || isVariable(v) {
+			continue
+		}
+		variableName := normalize(i) + "_VERSION"
+		res[variableName] = v
+		//s["image"] = makeImageString(r, i, "${" + variableName + "}")
+
+		contentString = strings.Replace(contentString, s["image"].(string), makeImageString(r, i, "${"+variableName+"}"), 1)
 	}
 
-	return nil, err
+	return res, contentString, err
+}
+
+func makeImageString(r, i, v string) string {
+
+	var sb strings.Builder
+
+	if r != "" {
+		sb.WriteString(r)
+		sb.WriteString("/")
+	}
+
+	sb.WriteString(i)
+
+	if v != "" {
+		sb.WriteString(":")
+		sb.WriteString(v)
+	}
+	return sb.String()
+}
+
+var imageRegex = regexp.MustCompile(`^(.+/)?([^:]+)?(:.+)?$`)
+
+func parseImage(image string) (registry, img, version string) {
+	parsed := imageRegex.FindStringSubmatch(image)
+
+	img = parsed[2]
+
+	if parsed[3] != "" {
+		version = parsed[3][1:]
+	}
+
+	if parsed[1] != "" {
+		registry = parsed[1][:len(parsed[1])-1]
+	}
+	return
+}
+
+func normalize(source string) string {
+	return strings.ToUpper(strings.ReplaceAll(source, "-", "_"))
+}
+
+func isVariable(input string) bool {
+	return strings.HasPrefix(input, "${") && strings.HasSuffix(input, "}")
 }

@@ -13,4 +13,8 @@
 
 # Dependency directories (remove the comment below to include it)
 # vendor/
+
 /cmd/dc-utils/dc-utils
+
+# User-specific stuff
+.idea/
